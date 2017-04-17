@@ -331,7 +331,7 @@ function stylize(str, style) {
 }
 
 }).call(this,require('_process'),"/lib/carto")
-},{"../../package.json":44,"./functions":1,"./parser":3,"./renderer":4,"./renderer_js":5,"./torque-reference":6,"./tree":7,"./tree/call":8,"./tree/color":9,"./tree/comment":10,"./tree/definition":11,"./tree/dimension":12,"./tree/element":13,"./tree/expression":14,"./tree/field":15,"./tree/filter":16,"./tree/filterset":17,"./tree/fontset":18,"./tree/frame_offset":19,"./tree/imagefilter":20,"./tree/invalid":21,"./tree/keyword":22,"./tree/layer":23,"./tree/literal":24,"./tree/operation":25,"./tree/quoted":26,"./tree/reference":27,"./tree/rule":28,"./tree/ruleset":29,"./tree/selector":30,"./tree/style":31,"./tree/url":32,"./tree/value":33,"./tree/variable":34,"./tree/zoom":35,"_process":40,"fs":36,"path":39,"util":42}],3:[function(require,module,exports){
+},{"../../package.json":44,"./functions":1,"./parser":3,"./renderer":4,"./renderer_js":5,"./torque-reference":6,"./tree":7,"./tree/call":8,"./tree/color":9,"./tree/comment":10,"./tree/definition":11,"./tree/dimension":12,"./tree/element":13,"./tree/expression":14,"./tree/field":15,"./tree/filter":16,"./tree/filterset":17,"./tree/fontset":18,"./tree/frame_offset":19,"./tree/imagefilter":20,"./tree/invalid":21,"./tree/keyword":22,"./tree/layer":23,"./tree/literal":24,"./tree/operation":25,"./tree/quoted":26,"./tree/reference":27,"./tree/rule":28,"./tree/ruleset":29,"./tree/selector":30,"./tree/style":31,"./tree/url":32,"./tree/value":33,"./tree/variable":34,"./tree/zoom":35,"_process":40,"fs":37,"path":39,"util":43}],3:[function(require,module,exports){
 (function (global){
 var carto = exports,
     tree = require('./tree'),
@@ -812,6 +812,7 @@ carto.Parser = function Parser(env) {
                         return new tree.Dimension(value[1], value[2], memo);
                     }
                 }
+
             },
 
             // The variable part of a variable definition.
@@ -1060,10 +1061,22 @@ carto.Parser = function Parser(env) {
             },
             // A sub-expression, contained by parenthensis
             sub: function() {
-                var e;
+                var e, expressions = [];
 
-                if ($('(') && (e = $(this.expression)) && $(')')) {
-                    return e;
+                if ($('(')) {
+                  while (e = $(this.expression)) {
+                      expressions.push(e);
+                      if (! $(',')) { break; }
+                  }
+                  $(')');
+                }
+
+                if (expressions.length > 1) {
+                    return new tree.Value(expressions.map(function(e) {
+                        return e.value[0];
+                    }));
+                } else if (expressions.length === 1) {
+                    return new tree.Value(expressions);
                 }
             },
             // This is a misnomer because it actually handles multiplication
@@ -1584,7 +1597,7 @@ CartoCSS.Layer.prototype = {
   },
 
   /**
-   * return the symbolizers that need to be rendered with 
+   * return the symbolizers that need to be rendered with
    * this style. The order is the rendering order.
    * @returns a list with 3 possible values 'line', 'marker', 'polygon'
    */
@@ -1626,7 +1639,7 @@ CartoCSS.Layer.prototype = {
 
   //
   // given a geoemtry type returns the transformed one acording the CartoCSS
-  // For points there are two kind of types: point and sprite, the first one 
+  // For points there are two kind of types: point and sprite, the first one
   // is a circle, second one is an image sprite
   //
   // the other geometry types are the same than geojson (polygon, linestring...)
@@ -1729,12 +1742,15 @@ CartoCSS.prototype = {
         var layer = layers[key] = (layers[key] || {
           symbolizers: []
         });
+
         for(var u = 0; u<def.rules.length; u++){
-            if(def.rules[u].name === "marker-file" || def.rules[u].name === "point-file"){
-                var value = def.rules[u].value.value[0].value[0].value.value;
+          var rule = def.rules[u];
+            if(rule.name === "marker-file" || rule.name === "point-file"){
+                var value = rule.value.value[0].value[0].value.value;
                 this.imageURLs.push(value);
             }
-        } 
+        }
+
         layer.frames = [];
         layer.zoom = tree.Zoom.all;
         var props = def.toJS(parse_env);
@@ -1762,6 +1778,13 @@ CartoCSS.prototype = {
       var done = {};
       for(var i = 0; i < defs.length; ++i) {
         var def = defs[i];
+
+        def.toXML(parse_env, {});
+
+        if (this.options.strict && parse_env.errors.message) {
+          throw new Error(parse_env.errors.message);
+        }
+
         var k = defKey(def);
         var layer = layers[k];
         if(!done[k]) {
@@ -1798,12 +1821,13 @@ CartoCSS.prototype = {
 carto.RendererJS = function (options) {
     this.options = options || {};
     this.options.mapnik_version = this.options.mapnik_version || 'latest';
+    this.reference = this.options.reference || require('./torque-reference').version.latest;
+    this.options.strict = this.options.hasOwnProperty('strict') ? this.options.strict : false;
 };
 
 // Prepare a javascript object which contains the layers
 carto.RendererJS.prototype.render = function render(cartocss, callback) {
-    var reference = require('./torque-reference');
-    tree.Reference.setData(reference.version.latest);
+    tree.Reference.setData(this.reference);
     return new CartoCSS(cartocss, this.options);
 }
 
@@ -1984,7 +2008,17 @@ var _mapnik_reference_latest = {
                     ["sharpen", 0],
                     ["colorize-alpha", -1],
                     ["color-to-alpha", 1],
-                    ["scale-hsla", 8]
+                    ["scale-hsla", 8],
+                    ["buckets", -1],
+                    ["category", -1],
+                    ["equal", -1],
+                    ["headtails", -1],
+                    ["jenks", -1],
+                    ["quantiles", -1],
+                    ["cartocolor", -1],
+                    ["colorbrewer", -1],
+                    ["range", -1],
+                    ["ramp", -1]
                 ],
                 "doc": "A list of image filters."
             },
@@ -2111,14 +2145,16 @@ var _mapnik_reference_latest = {
                 "type": "color",
                 "default-value": "rgba(128,128,128,1)",
                 "default-meaning": "gray and fully opaque (alpha = 1), same as rgb(128,128,128)",
-                "doc": "Fill color to assign to a polygon"
+                "doc": "Fill color to assign to a polygon",
+                "expression": true
             },
             "fill-opacity": {
                 "css": "polygon-opacity",
                 "type": "float",
                 "doc": "The opacity of the polygon",
                 "default-value": 1,
-                "default-meaning": "opaque"
+                "default-meaning": "opaque",
+                "expression": true
             },
             "gamma": {
                 "css": "polygon-gamma",
@@ -2219,13 +2255,15 @@ var _mapnik_reference_latest = {
                 "default-value": "rgba(0,0,0,1)",
                 "type": "color",
                 "default-meaning": "black and fully opaque (alpha = 1), same as rgb(0,0,0)",
-                "doc": "The color of a drawn line"
+                "doc": "The color of a drawn line",
+                "expression": true
             },
             "stroke-width": {
                 "css": "line-width",
                 "default-value": 1,
                 "type": "float",
-                "doc": "The width of a line in pixels"
+                "doc": "The width of a line in pixels",
+                "expression": true
             },
             "stroke-opacity": {
                 "css": "line-opacity",
@@ -2390,7 +2428,8 @@ var _mapnik_reference_latest = {
                 "doc": "An SVG file that this marker shows at each placement. If no file is given, the marker will show an ellipse.",
                 "default-value": "",
                 "default-meaning": "An ellipse or circle, if width equals height",
-                "type": "uri"
+                "type": "uri",
+                "expression": true
             },
             "opacity": {
                 "css": "marker-opacity",
@@ -2474,7 +2513,8 @@ var _mapnik_reference_latest = {
                 "css": "marker-fill",
                 "default-value": "blue",
                 "doc": "The color of the area of the marker.",
-                "type": "color"
+                "type": "color",
+                "expression": true
             },
             "allow-overlap": {
                 "css": "marker-allow-overlap",
@@ -2849,7 +2889,8 @@ var _mapnik_reference_latest = {
                 "type": "uri",
                 "default-value": "none",
                 "required": true,
-                "doc": "An image file to be repeated and warped along a line"
+                "doc": "An image file to be repeated and warped along a line",
+                "expression": true
             },
             "clip": {
                 "css": "line-pattern-clip",
@@ -2929,7 +2970,8 @@ var _mapnik_reference_latest = {
                 "type": "uri",
                 "default-value": "none",
                 "required": true,
-                "doc": "Image to use as a repeated pattern fill within a polygon"
+                "doc": "Image to use as a repeated pattern fill within a polygon",
+                "expression": true
             },
             "alignment": {
                 "css": "polygon-pattern-alignment",
@@ -4235,7 +4277,7 @@ tree.Definition.prototype.toJS = function(env) {
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":7,"assert":37,"underscore":undefined}],12:[function(require,module,exports){
+},{"../tree":7,"assert":36,"underscore":undefined}],12:[function(require,module,exports){
 (function (global){
 (function(tree) {
 var _ = global._ || require('underscore');
@@ -5302,7 +5344,7 @@ tree.Reference = ref;
 })(require('../tree'));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../tree":7,"mapnik-reference":43,"underscore":undefined}],28:[function(require,module,exports){
+},{"../tree":7,"mapnik-reference":38,"underscore":undefined}],28:[function(require,module,exports){
 (function(tree) {
 // a rule is a single property and value combination, or variable
 // name and value combination, like
@@ -5941,8 +5983,6 @@ tree.Zoom.prototype.toString = function() {
 };
 
 },{"../tree":7}],36:[function(require,module,exports){
-
-},{}],37:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -6304,32 +6344,38 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":42}],38:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
+},{"util/":43}],37:[function(require,module,exports){
 
-},{}],39:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
+(function (__dirname){
+var fs = require('fs'),
+    path = require('path'),
+    existsSync = require('fs').existsSync || require('path').existsSync;
+
+// Load all stated versions into the module exports
+module.exports.version = {};
+
+var refs = [
+ '2.0.0',
+ '2.0.1',
+ '2.0.2',
+ '2.1.0',
+ '2.1.1',
+ '2.2.0',
+ '2.3.0',
+ '3.0.0'
+];
+
+refs.map(function(version) {
+    module.exports.version[version] = require(path.join(__dirname, version, 'reference.json'));
+    var ds_path = path.join(__dirname, version, 'datasources.json');
+    if (existsSync(ds_path)) {
+        module.exports.version[version].datasources = require(ds_path).datasources;
+    }
+});
+
+}).call(this,"/node_modules/mapnik-reference")
+},{"fs":37,"path":39}],39:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6646,13 +6692,38 @@ process.chdir = function (dir) {
 };
 
 },{}],41:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],42:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],42:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -7242,36 +7313,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":41,"_process":40,"inherits":38}],43:[function(require,module,exports){
-(function (__dirname){
-var fs = require('fs'),
-    path = require('path'),
-    existsSync = require('fs').existsSync || require('path').existsSync;
-
-// Load all stated versions into the module exports
-module.exports.version = {};
-
-var refs = [
- '2.0.0',
- '2.0.1',
- '2.0.2',
- '2.1.0',
- '2.1.1',
- '2.2.0',
- '2.3.0',
- '3.0.0'
-];
-
-refs.map(function(version) {
-    module.exports.version[version] = require(path.join(__dirname, version, 'reference.json'));
-    var ds_path = path.join(__dirname, version, 'datasources.json');
-    if (existsSync(ds_path)) {
-        module.exports.version[version].datasources = require(ds_path).datasources;
-    }
-});
-
-}).call(this,"/node_modules/mapnik-reference")
-},{"fs":36,"path":39}],44:[function(require,module,exports){
+},{"./support/isBuffer":42,"_process":40,"inherits":41}],44:[function(require,module,exports){
 module.exports={
   "name": "carto",
   "version": "0.15.1-cdb1",
