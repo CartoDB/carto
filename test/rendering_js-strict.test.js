@@ -124,9 +124,6 @@ describe('RendererJS Strict Mode', function() {
   function rendererStrictModeOffTest(RendererJS) {
     return function () {
       var shader = RendererJS.render(style);
-      assert.ok(shader.parse_env);
-      assert.ok(shader.parse_env.errors);
-      assert.ok(shader.parse_env.errors.message.match(expectedErrorMessageRegex));
 
       assert.ok(shader.layers);
       assert.equal(shader.layers.length, 2);
