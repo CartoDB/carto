@@ -21,7 +21,8 @@
     "Konstantin Käfer",
     "Alexis Sellier <self@cloudhead.net>",
     "Raul Ochoa <rochoa@cartodb.com>",
-    "Javi Santana <jsantana@cartodb.com>"
+    "Javi Santana <jsantana@cartodb.com>",
+    "Carlos Matallín <matallo@carto.com>"
   ],
   "licenses": [
     {
@@ -37,9 +38,10 @@
     "node": ">=0.4.x"
   },
   "dependencies": {
-    "underscore": "1.8.3",
     "mapnik-reference": "~6.0.2",
-    "optimist": "~0.6.0"
+    "optimist": "~0.6.0",
+    "torque-reference": "git+https://github.com/CartoDB/torque-reference.git",
+    "underscore": "1.8.3"
   },
   "devDependencies": {
     "mocha": "1.12.x",
