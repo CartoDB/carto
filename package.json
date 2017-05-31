@@ -40,7 +40,7 @@
   "dependencies": {
     "mapnik-reference": "~6.0.2",
     "optimist": "~0.6.0",
-    "torque-reference": "git+https://github.com/CartoDB/torque-reference.git",
+    "torque-reference": "cartodb/torque-reference#master",
     "underscore": "1.8.3"
   },
   "devDependencies": {
