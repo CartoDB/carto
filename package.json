@@ -1,6 +1,6 @@
 {
   "name": "carto",
-  "version": "0.15.1-cdb3",
+  "version": "0.15.1-cdb4",
   "description": "CartoCSS Stylesheet Compiler",
   "url": "https://github.com/cartodb/carto",
   "repository": {
