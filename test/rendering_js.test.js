@@ -1,4 +1,4 @@
-
+var SHOW_LOGS = (process.env.HIDE_LOGS !== 'true');
 var assert = require('assert');
 var carto = require('../lib/carto');
 describe('RenderingJS', function() {
@@ -21,7 +21,7 @@ describe('RenderingJS', function() {
   ].join('\n');
 
   beforeEach(function() {
-    shader = (new carto.RendererJS({ debug: true })).render(style);
+    shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
   });
 
   it ("shold render layers", function() {
@@ -45,7 +45,7 @@ describe('RenderingJS', function() {
 
   it ("shold render variables", function() {
     var style = '#test { marker-width: [testing]; }';
-    shader = (new carto.RendererJS({ debug: true })).render(style);
+    shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer = shader.getLayers()[0];
     var props = layer.getStyle({testing: 2}, { 'zoom': 0, 'frame-offset': 10 });
     assert( props['marker-width'] === 2);
@@ -53,7 +53,7 @@ describe('RenderingJS', function() {
 
   it ("should allow filter based rendering", function() {
     var style = '#test { marker-width: 10; [zoom = 1] { marker-width: 1; } }';
-    shader = (new carto.RendererJS({ debug: true })).render(style);
+    shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer = shader.getLayers()[0];
     var props = layer.getStyle({}, { 'zoom': 0, 'frame-offset': 10 });
     assert( props['marker-width'] ===  10);
@@ -64,7 +64,7 @@ describe('RenderingJS', function() {
   it ("symbolizers should be in rendering order", function() {
     var style = '#test { polygon-fill: red; line-color: red; }';
     style += '#test2 { line-color: red;polygon-fill: red; line-width: 10; }';
-    var shader = (new carto.RendererJS({ debug: true })).render(style);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer0 = shader.getLayers()[0];
     assert(layer0.getSymbolizers()[0] === 'polygon');
     assert(layer0.getSymbolizers()[1] === 'line');
@@ -76,7 +76,7 @@ describe('RenderingJS', function() {
 
   it ("colorize should return a list of colours in same order", function() {
     var style = '#test { image-filters: colorize-alpha(blue, cyan, green, yellow, orange, red); }';
-    var shader = (new carto.RendererJS({ debug: true })).render(style);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer0 = shader.getLayers()[0];
     var st = layer0.getStyle({ value: 1 }, {"frame-offset": 0, "zoom": 3});
     var expectedColours = [[0, 0, 255], [0, 255, 255], [0, 128, 0], [255, 255, 0], [255, 165, 0], [255, 0, 0]];
@@ -106,7 +106,7 @@ describe('RenderingJS', function() {
           '  [frame-offset = 2] { marker-width: 15; marker-fill-opacity: 0.02;}',
           '}'
       ].join('\n');
-      var shader = (new carto.RendererJS({ debug: true })).render(css);
+      var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(css);
       var markerURLs = shader.getImageURLs();
       var against = ["http://localhost:8081/gal.svg", "http://upload.wikimedia.org/wikipedia/commons/4/43/Flag_of_the_Galactic_Empire.svg", "http://upload.wikimedia.org/wikipedia/commons/c/c9/Flag_of_Syldavia.svg"];
       for(var i = 0; i<against.length; i++){
@@ -116,24 +116,24 @@ describe('RenderingJS', function() {
 
   it ("should return variable for styles that change", function() {
     var style = '#test { marker-width: [prop]; }';
-    var shader = (new carto.RendererJS({ debug: true })).render(style);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer0 = shader.getLayers()[0];
     assert(layer0.isVariable());
 
     style = '#test { marker-width: 1; }';
-    shader = (new carto.RendererJS({ debug: true })).render(style);
+    shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     layer0 = shader.getLayers()[0];
     assert(!layer0.isVariable());
 
     style = '#test { marker-width: [prop]; marker-fill: red;  }';
-    shader = (new carto.RendererJS({ debug: true })).render(style);
+    shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     layer0 = shader.getLayers()[0];
     assert(layer0.isVariable());
   });
 
   it("should parse styles with string", function() {
     var style = '#test { [column = "test\'ing"] { marker-width: 10; } }';
-    var shader = (new carto.RendererJS({ debug: true })).render(style);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer = shader.getLayers()[0];
     var props = layer.getStyle({column: 'test\'ing'}, {  'zoom': 0, 'frame-offset': 10 });
     assert(props['marker-width'] ===  10);
@@ -141,7 +141,7 @@ describe('RenderingJS', function() {
 
   it("should parse styles with filters not supported by dot notation", function() {
     var style = '#test["mapnik::geometry_type"=1] { marker-width: 10; }';
-    var shader = (new carto.RendererJS({ debug: true })).render(style);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(style);
     var layer = shader.getLayers()[0];
     var props = layer.getStyle({"mapnik::geometry_type": 1}, { 'zoom': 0 });
     assert.equal(props['marker-width'], 10);
@@ -155,7 +155,7 @@ describe('RenderingJS', function() {
           '  marker-width: ramp([cartodb_id], (#fff, #bbb), jenks);',
           '}'
       ].join('\n');
-      var shader = (new carto.RendererJS({ debug: true })).render(css);
+      var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(css);
       var layer = shader.getLayers()[0];
       var st = layer.shader['marker-width'].style({}, {zoom: 1})
       assert.equal(st.name, "ramp")
@@ -172,7 +172,7 @@ describe('RenderingJS', function() {
       '  marker-width: ramp([cartodb_id], cartocolor(Bold), category(10));',
       '}'
     ].join('\n');
-    var shader = (new carto.RendererJS({ debug: true })).render(css);
+    var shader = (new carto.RendererJS({ debug: SHOW_LOGS })).render(css);
     var layer = shader.getLayers()[0];
     var st = layer.shader['marker-width'].style({}, {zoom: 1});
     assert.equal(st.name, "ramp");

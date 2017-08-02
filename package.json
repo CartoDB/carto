@@ -55,6 +55,7 @@
   "scripts": {
     "pretest": "npm install",
     "test": "mocha -R spec",
+    "tdd" : "env HIDE_LOGS=true mocha -w -R spec",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
   }
 }
