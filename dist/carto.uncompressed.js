@@ -268,7 +268,7 @@ var carto = {
         if (typeof(extract[2]) === 'string') {
             error.push(stylize((ctx.line + 1) + ' ' + extract[2], 'grey'));
         }
-        error = options.indent + error.join('\n' + options.indent) + '\033[0m\n';
+        error = options.indent + error.join('\n' + options.indent) + '\x1B[0m\n';
 
         message = options.indent + message + stylize(ctx.message, 'red');
         if (ctx.filename) (message += stylize(' in ', 'red') + ctx.filename);
@@ -326,8 +326,8 @@ function stylize(str, style) {
         'red' : [31, 39],
         'grey' : [90, 39]
     };
-    return '\033[' + styles[style][0] + 'm' + str +
-           '\033[' + styles[style][1] + 'm';
+    return '\x1B[' + styles[style][0] + 'm' + str +
+           '\x1B[' + styles[style][1] + 'm';
 }
 
 }).call(this,require('_process'),"/lib/carto")
@@ -1769,6 +1769,8 @@ CartoCSS.prototype = {
           // serach the max index to know rendering order
           lyr.index = _.max(props[v].map(function(a) { return a.index; }).concat(lyr.index));
           lyr.constant = !_.any(props[v].map(function(a) { return !a.constant; }));
+          // True when the property is filtered.
+          lyr.filtered = props[v][0].filtered;
         }
       }
 
@@ -4229,48 +4231,37 @@ tree.Definition.prototype.toXML = function(env, existing) {
 
 tree.Definition.prototype.toJS = function(env) {
   var shaderAttrs = {};
-
-  // merge conditions from filters with zoom condition of the
-  // definition
-  var zoom = "(" + this.zoom + " & (1 << ctx.zoom))";
   var frame_offset = this.frame_offset;
-  var _if = this.filters.toJS(env);
-  var filters = [zoom];
-  if(_if) filters.push(_if);
-  if(frame_offset) filters.push('ctx["frame-offset"] === ' + frame_offset);
-  _if = filters.join(" && ");
-  _.each(this.rules, function(rule) {
-      if(rule instanceof tree.Rule) {
-        shaderAttrs[rule.name] = shaderAttrs[rule.name] || [];
+  var zoomFilter = "(" + this.zoom + " & (1 << ctx.zoom))";
+  var filters = [zoomFilter];
+  var originalFilters = this.filters.toJS(env);
+  // Ignore default zoom for filtering (https://github.com/CartoDB/carto/issues/40)
+  var zoomFiltered = this.zoom !== tree.Zoom.all;
+  
+  if (originalFilters) {
+      filters.push(originalFilters);
+  }
 
-        var r = {
-          index: rule.index,
-          symbolizer: rule.symbolizer
-        };
+  if (frame_offset) {
+      filters.push('ctx["frame-offset"] === ' + frame_offset);
+  }
 
-        if (_if) {
-          r.js = "if(" + _if + "){" + rule.value.toJS(env) + "}"
-        } else {
-          r.js = rule.value.toJS(env);
-        }
+  _.each(this.rules, function (rule) {
+      var exportedRule = {};
 
-        r.constant = rule.value.ev(env).is !== 'field';
-        r.filtered = !!_if;
-
-        shaderAttrs[rule.name].push(r);
-      } else {
-        throw new Error("Ruleset not supported");
-        //if (rule instanceof tree.Ruleset) {
-          //var sh = rule.toJS(env);
-          //for(var v in sh) {
-            //shaderAttrs[v] = shaderAttrs[v] || [];
-            //for(var attr in sh[v]) {
-              //shaderAttrs[v].push(sh[v][attr]);
-            //}
-          //}
-        //}
+      if (!rule instanceof tree.Rule) {
+          throw new Error("Ruleset not supported");
       }
+
+      exportedRule.index = rule.index;
+      exportedRule.symbolizer = rule.symbolizer;
+      exportedRule.js = "if(" + filters.join(" && ") + "){" + rule.value.toJS(env) + "}";
+      exportedRule.constant = rule.value.ev(env).is !== 'field';
+      exportedRule.filtered = zoomFiltered || (originalFilters !== '');
+      shaderAttrs[rule.name] = shaderAttrs[rule.name] || [];
+      shaderAttrs[rule.name].push(exportedRule);
   });
+
   return shaderAttrs;
 };
 
@@ -7322,7 +7313,7 @@ function hasOwnProperty(obj, prop) {
 },{"./support/isBuffer":42,"_process":40,"inherits":41}],44:[function(require,module,exports){
 module.exports={
   "name": "carto",
-  "version": "0.15.1-cdb3",
+  "version": "0.15.1-cdb4",
   "description": "CartoCSS Stylesheet Compiler",
   "url": "https://github.com/cartodb/carto",
   "repository": {
@@ -7375,6 +7366,7 @@ module.exports={
   "scripts": {
     "pretest": "npm install",
     "test": "mocha -R spec",
+    "tdd" : "env HIDE_LOGS=true mocha -w -R spec",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
   }
 }

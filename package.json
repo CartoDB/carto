@@ -1,6 +1,6 @@
 {
   "name": "carto",
-  "version": "0.15.1-cdb3",
+  "version": "0.15.1-cdb4",
   "description": "CartoCSS Stylesheet Compiler",
   "url": "https://github.com/cartodb/carto",
   "repository": {
@@ -55,6 +55,7 @@
   "scripts": {
     "pretest": "npm install",
     "test": "mocha -R spec",
+    "tdd" : "env HIDE_LOGS=true mocha -w -R spec",
     "coverage": "istanbul cover ./node_modules/.bin/_mocha && coveralls < ./coverage/lcov.info"
   }
 }
